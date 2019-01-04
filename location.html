@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>我的位置</title>
+	 <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no, width=device-width">
+</head>
+<style>
+        html,
+        body,
+        #container,#app {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+        }
+        #header {
+          background-color: #fff;
+          height:40pt;
+          top:10pt;
+          left: 15pt;
+          right: 15pt;
+          position: absolute;
+          z-index: 100;
+          border-radius:4pt;
+          flex-wrap: nowrap;
+		  align-items: center;
+		  display: flex;
+        }
+        .input{
+            font-size: 13pt;
+            height: 30pt;
+            border-width: 0;
+            /*background-color: yellow;*/
+            flex-grow:2;
+            text-indent:2px;
+        }
+        .search {
+            /*background-color: red;*/
+            flex-grow:1;
+            text-align: center;
+            font-size: 13pt;
+            border-left: dashed;
+            border-width: 0.5px;
+        }
+        #table {
+        	background-color: #fff;
+	        top:52pt;
+	        left: 15pt;
+	        right: 15pt;
+	        position: absolute;
+	        z-index: 100;
+	        border-radius:4pt;
+	        padding-left: 10pt;
+	        padding-right: 10pt;
+        }
+        .item {
+        	height: 45px;
+        	display: flex;
+        	flex-direction: column;
+        }
+        .text {
+        	overflow: hidden;
+        	text-overflow : ellipsis;
+        }
+        .name {
+        	width: 100%;
+        	height: 25px;
+        }
+        .address {
+        	color: lightgray;
+            font-size: 14px;
+            width: 100%;
+            height: 19px;
+        }
+        .line {
+        	width: 100%;
+        	background-color: #eee;
+        	height: 1px;
+        }
+    </style>
+</head>
+<body>
+	<div id="app">
+	    <div id="header">
+		    <input class="input" type="text" placeholder="搜索"  v-model="message">		
+			<span class="search" @click='searchPOI()'>搜索</span>
+		</div>
+		<div id="table" v-if="isShow"> 
+			<div class="item" v-for="item in result">
+				<div @click="selectIndex(item)">
+					<div class="name text">{{item.name}}</div>
+					<div class="address text">{{item.address}}</div>
+					<div class="line"></div>
+				</div>
+			</div>
+		</div>
+		<div id="container"></div>	
+	</div>
+	
+<!-- <script src="https://webapi.amap.com/maps?v=1.4.12&key=48182648e27df3b3a90d4613265ac042"></script> -->
+<script type="text/javascript" src="https://webapi.amap.com/maps?v=1.4.12&key=48182648e27df3b3a90d4613265ac042&plugin=AMap.Driving"></script>
+<script src="https://cdn.jsdelivr.net/npm/vue@2.5.21/dist/vue.js"></script>
+<script>
+
+    var app = new Vue({
+	  el: '#app',
+	  data: {
+	    message: '',
+	    result:[],
+	    isShow:false,
+	    startLngLat:{'lng':'','lat':''},
+	    map:null,
+	    driving:null,
+	  },
+	  mounted: function () {
+		// 高德地图
+	    map = new AMap.Map('container', {
+	        layers: [//只显示默认图层的时候，layers可以缺省
+	            new AMap.TileLayer()//高德默认标准图层
+	        ],
+	        resizeEnable: true,
+	        zoom: 13 //地图显示的缩放级别
+	    });
+	    driving = new AMap.Driving({
+			        map: map
+			    });
+
+	    AMap.plugin('AMap.Geolocation', function() {
+        var geolocation = new AMap.Geolocation({
+            enableHighAccuracy: true,//是否使用高精度定位，默认:true
+            timeout: 10000,          //超过10秒后停止定位，默认：5s
+            buttonPosition:'RB',    //定位按钮的停靠位置
+            buttonOffset: new AMap.Pixel(10, 20),//定位按钮与设置的停靠位置的偏移量，默认：Pixel(10, 20)
+            zoomToAccuracy: true,   //定位成功后是否自动调整地图视野到定位点
+        });
+        map.addControl(geolocation);
+        geolocation.getCurrentPosition(function(status,result){
+	            if(status=='complete'){
+					this.startLngLat = {
+						   'lng':result.position.lng,
+						   'lat':result.position.lat,
+						};
+	            }else{
+	                
+	            }
+	        });
+	    });
+	  },
+	  methods: {
+	    searchPOI: function(){
+	    	  const self = this;
+	          const map = new AMap.Map('map');
+		      map.plugin(['AMap.PlaceSearch'], function () {
+		        placeSearch = new AMap.PlaceSearch({
+		        	pageSize: 5,//每页显示多少行
+		            pageIndex: 1,//显示的下标从那个开始
+		        });
+		        placeSearch.search(self.message);
+		        placeSearch.on('complete', function (res) {
+		            self.result = res.poiList.pois;
+		            self.isShow =  self.result.length > 0;
+		        });
+		      });
+	    },
+	    selectIndex:function(item){
+	    	this.isShow = false;
+	    	var endLngLat = {
+						   'lng':item.location.lng,
+						   'lat':item.location.lat,
+						};
+	    	this.showDriving(endLngLat);
+	    },
+	    showDriving:function(endLngLat){
+            //构造路线导航类
+		    if (driving) {
+		    	driving.clear() 
+		    }else {
+		    	driving = new AMap.Driving({
+			        map: map
+			    });
+		    }
+		    // 根据起终点经纬度规划驾车导航路线
+		    driving.search(
+		    	new AMap.LngLat(startLngLat.lng,startLngLat.lat), 
+		    	new AMap.LngLat(endLngLat.lng, endLngLat.lat), function(status, result) {
+		        if (status === 'complete') {
+		        }else {
+		        }
+		    });
+	    }
+
+	  },
+	  watch: {
+	    // 如果 `question` 发生改变，这个函数就会运行
+	    message: function (newValue, oldValue) {
+	    	if (newValue.length>0) {
+		    	this.searchPOI()	
+	    	}else {
+	    		driving.clear() 
+	    	}
+	      }
+	  }
+
+	})
+</script>
+</body>
+</html>
