@@ -8,8 +8,7 @@
 </head>
 <style>
         html,
-        body,
-        #container,#app {
+        body {
             margin: 0;
             padding: 0;
             width: 100%;
@@ -134,7 +133,7 @@
     </style>
 </head>
 <body>
-	<div id="app">
+	<div id="app" class="fullScreen">
 	    <div id="header">
 	    	<input class="input" id="start" type="text" placeholder="输入起点" v-model="startAddress">
 	    	<div class="line"></div>
@@ -150,7 +149,8 @@
 				</div>
 			</div>
 		</div>
-		
+		<div id="container" class="fullScreen"></div>
+
 		<!-- <div class="tool_bar">
 			 <div v-for="item in menu" class="menu_item" v-bind:class="item.selectd ? 'select_item':'normal_item'"
                @click='menuClick(item)'>
@@ -158,10 +158,11 @@
 			 </div>
 		</div> -->
         <div v-if="showFrame">
+        	<div class="fullScreen" style="background-color: #fff;z-index: 9999;position: absolute;top: 0;left: 0;"></div>
         	<iframe class="frame frameStyle" :src="frameUrl"></iframe>
         	<button class="closeBtn frameStyle" @click="closeFrame">关闭</button>
         </div>
-        <div v-else id="container"></div>
+        
 			
 	</div>
 	
@@ -287,8 +288,6 @@
 				// document.getElementById('end').value = item.name;
 				// console.log('===> ' + document.getElementById('end').value + '===>' + this.endAddress);
 	    	}
-	    	
-	    	// console.log('selectIndex ,' + item.name + this.index);
 	    },
 	    showPath:function(){
 	    	if (this.startLngLat.lat>0 && this.endLngLat.lat>0) {
