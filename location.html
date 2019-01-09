@@ -15,9 +15,15 @@
             width: 100%;
             height: 100%;
         }
+        .fullScreen {
+        	margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+        }
         #header {
           background-color: #fff;
-          height:40pt;
+          height:60pt;
           top:10pt;
           left: 15pt;
           right: 15pt;
@@ -25,28 +31,33 @@
           z-index: 100;
           border-radius:4pt;
           flex-wrap: nowrap;
-		  align-items: center;
+		  align-items: left;
 		  display: flex;
+		  flex-direction: column;
         }
         .input{
             font-size: 13pt;
-            height: 30pt;
+            height: 50%;
             border-width: 0;
             /*background-color: yellow;*/
-            flex-grow:2;
+            width: 80%;
             text-indent:2px;
         }
         .search {
-            /*background-color: red;*/
-            flex-grow:1;
+            background-color: #fff;
+            width: 20%;
             text-align: center;
             font-size: 13pt;
             border-left: dashed;
             border-width: 0.5px;
+            position: absolute;
+            right: 0;
+            height: 100%;
+            line-height: 60pt;
         }
         #table {
         	background-color: #fff;
-	        top:52pt;
+	        top:72pt;
 	        left: 15pt;
 	        right: 15pt;
 	        position: absolute;
@@ -79,13 +90,56 @@
         	background-color: #eee;
         	height: 1px;
         }
+        .tool_bar {
+        	border-radius:3pt;
+        	z-index: 100;
+        	width: 40px;
+        	/*height: 120px;*/
+        	background-color: #fff;
+        	position: absolute;
+        	right: 10px;
+        	bottom: 200px;
+        	display: flex;
+        	flex-direction: column;
+        }
+        .select_item{
+           color: blue;
+        }
+        .normal_item {
+		   color: black;
+        }
+        .menu_item {
+        	flex-grow:1;
+        	text-align: center;
+        	margin-top: 5px;
+        	margin-bottom: 5px;
+        }
+
+        .frameStyle {
+			position: absolute;
+			z-index: 10000;
+        }
+        .frame {
+        	width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            border-width: 0;
+        }
+        .closeBtn {
+        	position: absolute;
+            top: 10px;
+            right: 10px;
+        }
     </style>
 </head>
 <body>
 	<div id="app">
 	    <div id="header">
-		    <input class="input" type="text" placeholder="搜索"  v-model="message">		
-			<span class="search" @click='searchPOI()'>搜索</span>
+	    	<input class="input" id="start" type="text" placeholder="输入起点" v-model="startAddress">
+	    	<div class="line"></div>
+		    <input class="input" id="end" type="text" placeholder="输入终点"  v-model="endAddress">
+			<span class="search" @click='showIframe()'>搜索</span>
 		</div>
 		<div id="table" v-if="isShow"> 
 			<div class="item" v-for="item in result">
@@ -96,114 +150,270 @@
 				</div>
 			</div>
 		</div>
-		<div id="container"></div>	
+		<div id="container"></div>
+		<!-- <div class="tool_bar">
+			 <div v-for="item in menu" class="menu_item" v-bind:class="item.selectd ? 'select_item':'normal_item'"
+               @click='menuClick(item)'>
+			 	{{item.title}}
+			 </div>
+		</div> -->
+        <div v-if="showFrame">
+        	<iframe class="frame frameStyle" :src="frameUrl"></iframe>
+        	<button class="closeBtn frameStyle" @click="closeFrame">关闭</button>
+        </div>
+			
 	</div>
 	
 <!-- <script src="https://webapi.amap.com/maps?v=1.4.12&key=48182648e27df3b3a90d4613265ac042"></script> -->
-<script type="text/javascript" src="https://webapi.amap.com/maps?v=1.4.12&key=48182648e27df3b3a90d4613265ac042&plugin=AMap.Driving"></script>
+<script type="text/javascript" src="https://webapi.amap.com/maps?v=1.4.12&key=48182648e27df3b3a90d4613265ac042&plugin=AMap.Driving,AMap.Transfer,AMap.Walking"></script>
 <script src="https://cdn.jsdelivr.net/npm/vue@2.5.21/dist/vue.js"></script>
 <script>
 
     var app = new Vue({
 	  el: '#app',
 	  data: {
-	    message: '',
 	    result:[],
+	    city:'',
+	    startAddress: '我的位置',
+	    endAddress: '',
 	    isShow:false,
+	    showFrame:false,
 	    startLngLat:{'lng':'','lat':''},
+	    endLngLat:{'lng':'','lat':''},
 	    map:null,
-	    driving:null,
+	    driving:null,//驾车
+	    transfer:null,//公交
+	    walking:null,//步行
+	    index:1,
+	    menu:[
+		    {'type':'0','title':'驾车','selectd':true},
+		    {'type':'1','title':'公交','selectd':false},
+		    {'type':'2','title':'步行','selectd':false}
+	    ],
+	    frameUrl:'',
+	    canSearch:true
 	  },
 	  mounted: function () {
-		// 高德地图
-	    map = new AMap.Map('container', {
-	        layers: [//只显示默认图层的时候，layers可以缺省
-	            new AMap.TileLayer()//高德默认标准图层
-	        ],
-	        resizeEnable: true,
-	        zoom: 13 //地图显示的缩放级别
-	    });
-	    driving = new AMap.Driving({
-			        map: map
-			    });
-
-	    AMap.plugin('AMap.Geolocation', function() {
-        var geolocation = new AMap.Geolocation({
-            enableHighAccuracy: true,//是否使用高精度定位，默认:true
-            timeout: 10000,          //超过10秒后停止定位，默认：5s
-            buttonPosition:'RB',    //定位按钮的停靠位置
-            buttonOffset: new AMap.Pixel(10, 20),//定位按钮与设置的停靠位置的偏移量，默认：Pixel(10, 20)
-            zoomToAccuracy: true,   //定位成功后是否自动调整地图视野到定位点
-        });
-        map.addControl(geolocation);
-        geolocation.getCurrentPosition(function(status,result){
-	            if(status=='complete'){
-					this.startLngLat = {
-						   'lng':result.position.lng,
-						   'lat':result.position.lat,
-						};
-	            }else{
-	                
-	            }
-	        });
-	    });
+	  	this.init();
 	  },
 	  methods: {
+	  	init:function(){
+	  		// 高德地图	  
+	  		// alert(this.isShow)		
+		    var map = new AMap.Map('container', {
+		        layers: [//只显示默认图层的时候，layers可以缺省
+		            new AMap.TileLayer()//高德默认标准图层
+		        ],
+		        resizeEnable: true,
+		        zoom: 13 //地图显示的缩放级别
+		    });
+
+		    AMap.plugin('AMap.Geolocation', function() {
+	        var geolocation = new AMap.Geolocation({
+	            enableHighAccuracy: true,//是否使用高精度定位，默认:true
+	            timeout: 10000,          //超过10秒后停止定位，默认：5s
+	            buttonPosition:'RB',    //定位按钮的停靠位置
+	            buttonOffset: new AMap.Pixel(10, 20),//定位按钮与设置的停靠位置的偏移量，默认：Pixel(10, 20)
+	            zoomToAccuracy: true,   //定位成功后是否自动调整地图视野到定位点
+	        });
+	        map.addControl(geolocation);
+	        this.map = map;
+	        
+	        this.driving = new AMap.Driving({
+				        map: map
+				    });
+
+		    //步行导航
+		    this.walking = new AMap.Walking({
+		        map: map
+		    }); 
+
+	        const self = this;
+	        geolocation.getCurrentPosition(function(status,result){
+		            if(status=='complete'){
+						self.app.startLngLat = {
+							   'lng':result.position.lng,
+							   'lat':result.position.lat,
+							};
+						self.app.city = result.addressComponent.city;
+						//构造公交换乘类
+					    self.app.transfer = new AMap.Transfer({
+							        map: map,
+							        city: self.app.city
+							    });
+						// self.app.startAddress = result.formattedAddress;
+						// document.getElementById('start').value = result.formattedAddress
+						// alert(this.startAddress)
+						// console.log(result)
+		            }else{
+
+		            }
+		        });
+		    });
+	  	},
 	    searchPOI: function(){
 	    	  const self = this;
 	          const map = new AMap.Map('map');
+	          var keyword = this.index == 1 ? this.startAddress : this.endAddress
 		      map.plugin(['AMap.PlaceSearch'], function () {
 		        placeSearch = new AMap.PlaceSearch({
 		        	pageSize: 5,//每页显示多少行
 		            pageIndex: 1,//显示的下标从那个开始
 		        });
-		        placeSearch.search(self.message);
+		        placeSearch.search(keyword);
 		        placeSearch.on('complete', function (res) {
 		            self.result = res.poiList.pois;
-		            self.isShow =  self.result.length > 0;
+		            self.isShow = self.result.length > 0;
 		        });
 		      });
 	    },
 	    selectIndex:function(item){
 	    	this.isShow = false;
-	    	var endLngLat = {
+	    	this.canSearch = false;
+	    	if (this.index == 1) {
+                this.startLngLat = {
 						   'lng':item.location.lng,
 						   'lat':item.location.lat,
 						};
-	    	this.showDriving(endLngLat);
+				this.startAddress = item.name;
+				// document.getElementById('start').value = item.name;		
+	    	}else {
+	    		this.endLngLat = {
+						   'lng':item.location.lng,
+						   'lat':item.location.lat
+						};
+				this.endAddress = item.name;
+				// document.getElementById('end').value = item.name;
+				console.log('===> ' + document.getElementById('end').value + '===>' + this.endAddress);
+	    	}
+	    	
+	    	// console.log('selectIndex ,' + item.name + this.index);
 	    },
-	    showDriving:function(endLngLat){
+	    showIframe:function(){
+	    	if (this.startLngLat.lat>0 && this.endLngLat.lat>0) {
+	    	    this.frameUrl = 'https://m.amap.com/navi/?start='+this.startLngLat.lng+','+this.startLngLat.lat+'&dest='+this.endLngLat.lng+','+this.endLngLat.lat+'&naviBy=car&key=48182648e27df3b3a90d4613265ac042'
+	    	    this.showFrame = true;
+	    	}
+	    },
+	    closeFrame:function(){
+			this.showFrame = false;
+			this.init();
+	    },
+	    showDriving:function(){
             //构造路线导航类
-		    if (driving) {
-		    	driving.clear() 
+		    if (this.driving) {
+		    	this.driving.clear() 
 		    }else {
-		    	driving = new AMap.Driving({
+		    	this.driving = new AMap.Driving({
+			        map: map
+			    });
+		    }
+		    //根据起终点经纬度规划驾车导航路线
+		    this.driving.search(
+		    	new AMap.LngLat(this.startLngLat.lng,this.startLngLat.lat), 
+		    	new AMap.LngLat(this.endLngLat.lng, this.endLngLat.lat), function(status, result) {
+		        if (status === 'complete') {
+
+		        }else {
+
+		        }
+		    });
+	    },
+	    showTransfer:function(){
+            //构造路线导航类
+		    if (this.transfer) {
+		    	this.transfer.clear() 
+		    }else {
+		    	this.transfer = new AMap.Transfer({
+			        map: map,
+			        city: this.city
+			    });
+		    }
+		    //根据起终点经纬度规划驾车导航路线
+		    this.transfer.search(
+		    	new AMap.LngLat(this.startLngLat.lng,this.startLngLat.lat), 
+		    	new AMap.LngLat(this.endLngLat.lng, this.endLngLat.lat), function(status, result) {
+		        if (status === 'complete') {
+					console.log(JSON.stringify(result))
+		        }else {
+					alert(JSON.stringify(result))
+		        }
+		    });
+	    },
+	    showWalking:function(){
+            //构造路线导航类
+		    if (this.walking) {
+		    	this.walking.clear() 
+		    }else {
+		    	this.walking = new AMap.Walking({
 			        map: map
 			    });
 		    }
 		    // 根据起终点经纬度规划驾车导航路线
-		    driving.search(
-		    	new AMap.LngLat(startLngLat.lng,startLngLat.lat), 
-		    	new AMap.LngLat(endLngLat.lng, endLngLat.lat), function(status, result) {
+		    this.walking.search([this.startLngLat.lng,this.startLngLat.lat], [this.endLngLat.lng, this.endLngLat.lat], function(status, result) {
+	    		
 		        if (status === 'complete') {
+					console.log(JSON.stringify(result))
 		        }else {
+                    alert(JSON.stringify(result))
 		        }
 		    });
+	    },
+	    clear:function(){
+            if (this.driving) {
+		    	this.driving.clear() 
+		    }
+		    if (this.transfer) {
+		    	this.transfer.clear() 
+		    }
+		    if (this.walking) {
+		    	this.walking.clear() 
+		    }
+		    
+	    },
+	    menuClick:function(item){
+            for (var i=0;i<this.menu.length;i++){
+              var obj = this.menu[i]
+			  if (item.type == i) {
+                obj.selectd = true;
+			  }else {
+			  	obj.selectd = false;
+			  }
+			}
+           this.clear();
+           if (item.type == 0) {
+              this.showDriving();
+           }else if (item.type == 1) {
+              this.showTransfer();
+           }else if (item.type == 2) {
+	          this.showWalking();
+           }
 	    }
 
 	  },
 	  watch: {
-	    // 如果 `question` 发生改变，这个函数就会运行
-	    message: function (newValue, oldValue) {
-	    	if (newValue.length>0) {
+	    // 如果 `` 发生改变，这个函数就会运行
+	    startAddress: function (newValue, oldValue) {
+	    	this.index = 1;
+	    	if (newValue.length>0 && this.canSearch) {
+		    	this.searchPOI()	
+	    	}else { 
+	    		this.clear()
+	    		this.canSearch = true; 
+	    	}
+	      },
+	    endAddress: function (newValue, oldValue) {
+	    	this.index = 2;
+	    	if (newValue.length>0 && this.canSearch) {
 		    	this.searchPOI()	
 	    	}else {
-	    		driving.clear() 
+	    		this.clear() 
+	    		this.canSearch = true;
 	    	}
 	      }
 	  }
-
 	})
+
 </script>
 </body>
 </html>
