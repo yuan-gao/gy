@@ -139,7 +139,7 @@
 	    	<input class="input" id="start" type="text" placeholder="输入起点" v-model="startAddress">
 	    	<div class="line"></div>
 		    <input class="input" id="end" type="text" placeholder="输入终点"  v-model="endAddress">
-			<span class="search" @click='showIframe()'>搜索</span>
+			<span class="search" @click='showPath()'>搜索</span>
 		</div>
 		<div id="table" v-if="isShow"> 
 			<div class="item" v-for="item in result">
@@ -150,7 +150,7 @@
 				</div>
 			</div>
 		</div>
-		<div id="container"></div>
+		
 		<!-- <div class="tool_bar">
 			 <div v-for="item in menu" class="menu_item" v-bind:class="item.selectd ? 'select_item':'normal_item'"
                @click='menuClick(item)'>
@@ -161,6 +161,7 @@
         	<iframe class="frame frameStyle" :src="frameUrl"></iframe>
         	<button class="closeBtn frameStyle" @click="closeFrame">关闭</button>
         </div>
+        <div v-else id="container"></div>
 			
 	</div>
 	
@@ -284,12 +285,12 @@
 						};
 				this.endAddress = item.name;
 				// document.getElementById('end').value = item.name;
-				console.log('===> ' + document.getElementById('end').value + '===>' + this.endAddress);
+				// console.log('===> ' + document.getElementById('end').value + '===>' + this.endAddress);
 	    	}
 	    	
 	    	// console.log('selectIndex ,' + item.name + this.index);
 	    },
-	    showIframe:function(){
+	    showPath:function(){
 	    	if (this.startLngLat.lat>0 && this.endLngLat.lat>0) {
 	    	    this.frameUrl = 'https://m.amap.com/navi/?start='+this.startLngLat.lng+','+this.startLngLat.lat+'&dest='+this.endLngLat.lng+','+this.endLngLat.lat+'&naviBy=car&key=48182648e27df3b3a90d4613265ac042'
 	    	    this.showFrame = true;
