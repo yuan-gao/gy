@@ -163,7 +163,6 @@
         	<button class="closeBtn frameStyle" @click="closeFrame">关闭</button>
         </div>
         
-			
 	</div>
 	
 <!-- <script src="https://webapi.amap.com/maps?v=1.4.12&key=48182648e27df3b3a90d4613265ac042"></script> -->
@@ -259,6 +258,7 @@
 	          var keyword = this.index == 1 ? this.startAddress : this.endAddress
 		      map.plugin(['AMap.PlaceSearch'], function () {
 		        placeSearch = new AMap.PlaceSearch({
+		        	type:"餐饮|酒店|电影院|餐饮服务|商务住宅|生活服务|购物服务|医疗保健服务",
 		        	pageSize: 5,//每页显示多少行
 		            pageIndex: 1,//显示的下标从那个开始
 		        });
